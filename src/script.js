@@ -101,25 +101,70 @@ const IDB = (() => {
     tx.oncomplete = (e) => {};
     const store = tx.objectStore("whiskeyStore");
 
+    /**
+     * Version (1)
+     * Getting all from the store
+     */
     // const getReq = store.getAll();
 
+    /**
+     * Version (2)
+     * Getting all with key range and index
+     */
     // const range = IDBKeyRange.lowerBound(14, true); // 14 or higher...if true, 15 or higher
-    const range = IDBKeyRange.bound(1, 10, false, false);
-    const idx = store.index("ageIDX");
-    const getReq = idx.getAll(range);
+    // const range = IDBKeyRange.bound(1, 10, false, false);
+    // const idx = store.index("ageIDX");
+    // const getReq = idx.getAll(range);
 
-    getReq.onsuccess = (e) => {
-      const request = e.target; // request === getReq === e.target
-      console.log({ request });
-      list.innerHTML = request.result
-        .map(
-          (whiskey) =>
-            `<li data-key="${whiskey.id}"><span>${whiskey.name}</span> ${whiskey.age}</li>`
-        )
-        .join("\n");
-    };
-    getReq.onerror = (err) => {
-      console.warn(err);
+    /**
+     * Version (1) and version (2) are return an
+     * array of list items (whiskeys)
+     */
+    // getReq.onsuccess = (e) => {
+    //   const request = e.target; // request === getReq === e.target
+    //   console.log({ request });
+    //   list.innerHTML = request.result
+    //     .map(
+    //       (whiskey) =>
+    //         `<li data-key="${whiskey.id}"><span>${whiskey.name}</span> ${whiskey.age}</li>`
+    //     )
+    //     .join("\n");
+    // };
+    // getReq.onerror = (err) => {
+    //   console.warn(err);
+    // };
+
+    /**
+     * Version (3)
+     *
+     */
+    const index = store.index("nameIDX");
+    /**
+     * Using strings as bounds is case sensitive therefore
+     * A-Z comes before a-z
+     */
+    const range = IDBKeyRange.bound("A", "Z", false, false);
+    list.innerHTML = "";
+    // IDBCursorDirection -> next, nextunique, prev, prevunique
+    index.openCursor(range, "prevunique").onsuccess = (e) => {
+      const cursor = e.target.result;
+      if (cursor) {
+        console.log(
+          cursor.source.objectStore.name,
+          cursor.source.name,
+          cursor.direction,
+          cursor.key,
+          cursor.primaryKey,
+          cursor.value
+        );
+
+        let whiskey = cursor.value;
+        list.innerHTML += `<li data-key="${whiskey.id}"><span>${whiskey.name}</span> ${whiskey.age}</li>`;
+
+        cursor.continue(); // calls the onsuccess method again
+      } else {
+        console.log("End of cursor");
+      }
     };
   };
 

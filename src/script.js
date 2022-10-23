@@ -1,11 +1,12 @@
 import { uid } from "./uid";
+import { state } from "./data.js";
 
 const IDB = (() => {
   let db = null;
   let objectStore = null;
   let DBOpenReq = null;
 
-  DBOpenReq = indexedDB.open("WhiskeyDB", 1);
+  DBOpenReq = indexedDB.open("WhiskeyDB", 2);
 
   DBOpenReq.addEventListener("error", (event) => {
     console.warn(err);
@@ -14,7 +15,53 @@ const IDB = (() => {
   DBOpenReq.addEventListener("success", (e) => {
     db = e.target.result;
     console.log("Success: ", db);
-    buildList();
+
+    if (state) {
+      const tx = makeTx("whiskeyStore", "readwrite");
+      tx.oncomplete = () => {
+        console.log("Finishing adding data");
+        buildList();
+      };
+      const store = tx.objectStore("whiskeyStore");
+
+      /**
+       * If you go in the route of deleting all before insert
+       * here are some of the methods you can use:
+       * - store.clear() // deletes all
+       * - store.delete(key) // deletes by key
+       * - store.delete(IDBKeyRange.lowerBound(0)) // deletes all with key >= 0
+       * - store.delete(IDBKeyRange.upperBound(0)) // deletes all with key <= 0
+       * - store.delete(IDBKeyRange.bound(0, 100)) // deletes all with key >= 0 and key <= 100
+       * - store.delete(IDBKeyRange.only(0)) // deletes all with key === 0
+       * - store.delete(IDBKeyRange.lowerBound(0, true)) // deletes all with key > 0
+       * - store.delete(IDBKeyRange.upperBound(0, true)) // deletes all with key < 0
+       * - store.delete(IDBKeyRange.bound(0, 100, true, true)) // deletes all with key > 0 and key < 100
+       * - store.delete(IDBKeyRange.bound(0, 100, true, false)) // deletes all with key > 0 and key <= 100
+       * - store.delete(IDBKeyRange.bound(0, 100, false, true)) // deletes all with key >= 0 and key < 100
+       * - store.delete(IDBKeyRange.bound(0, 100, false, false)) // deletes all with key >= 0 and key <= 100
+       */
+
+      const request = store.getAll();
+      request.onsuccess = (e) => {
+        if (e.target.result.length === 0) {
+          state.forEach((item) => {
+            const req = store.add(item);
+            req.onsuccess = () => {
+              console.log("Added an object");
+            };
+            req.onerror = () => {
+              // transaction.abort(); - kills the transaction
+              tx.abort();
+              console.warn(err);
+            };
+          });
+        }
+      };
+
+      request.onerror = (e) => {};
+    } else {
+      buildList();
+    }
   });
 
   DBOpenReq.addEventListener("upgradeneeded", (e) => {

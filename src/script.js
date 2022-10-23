@@ -6,9 +6,9 @@ const IDB = (() => {
   let objectStore = null;
   let DBOpenReq = null;
 
-  DBOpenReq = indexedDB.open("WhiskeyDB", 3);
+  DBOpenReq = indexedDB.open("WhiskeyDB", 1);
 
-  DBOpenReq.addEventListener("error", (event) => {
+  DBOpenReq.addEventListener("error", (err) => {
     console.warn(err);
   });
 
@@ -69,10 +69,16 @@ const IDB = (() => {
     console.log("Upgrade: ", db);
     if (db.objectStoreNames.contains("whiskeyStore")) {
       db.deleteObjectStore("whiskeyStore");
-      objectStore = db.createObjectStore("whiskeyStore", { keyPath: "id" });
-      objectStore.createIndex("nameIDX", "name", { unique: false });
-      objectStore.createIndex("countryIDX", "country", { unique: false });
     }
+
+    // Create an objectStore for this database
+    objectStore = db.createObjectStore("whiskeyStore", { keyPath: "id" });
+
+    // Add the indexes
+    objectStore.createIndex("nameIDX", "name", { unique: false });
+    objectStore.createIndex("countryIDX", "country", { unique: false });
+    objectStore.createIndex("ageIDX", "age", { unique: false });
+    objectStore.createIndex("editIDX", "lastEdit", { unique: false });
   });
 
   const makeTx = (storeName, mode) => {
@@ -94,7 +100,14 @@ const IDB = (() => {
     const tx = makeTx("whiskeyStore", "readonly");
     tx.oncomplete = (e) => {};
     const store = tx.objectStore("whiskeyStore");
-    const getReq = store.getAll();
+
+    // const getReq = store.getAll();
+
+    // const range = IDBKeyRange.lowerBound(14, true); // 14 or higher...if true, 15 or higher
+    const range = IDBKeyRange.bound(1, 10, false, false);
+    const idx = store.index("ageIDX");
+    const getReq = idx.getAll(range);
+
     getReq.onsuccess = (e) => {
       const request = e.target; // request === getReq === e.target
       console.log({ request });
@@ -124,6 +137,7 @@ const IDB = (() => {
       country,
       age,
       owned,
+      lastEdit: Date.now(),
     };
 
     const tx = makeTx("whiskeyStore", "readwrite");
@@ -187,6 +201,7 @@ const IDB = (() => {
         country,
         age,
         owned,
+        lastEdit: Date.now(),
       };
 
       const tx = makeTx("whiskeyStore", "readwrite");

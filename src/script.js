@@ -6,7 +6,7 @@ const IDB = (() => {
   let objectStore = null;
   let DBOpenReq = null;
 
-  DBOpenReq = indexedDB.open("WhiskeyDB", 2);
+  DBOpenReq = indexedDB.open("WhiskeyDB", 3);
 
   DBOpenReq.addEventListener("error", (event) => {
     console.warn(err);
@@ -67,8 +67,11 @@ const IDB = (() => {
   DBOpenReq.addEventListener("upgradeneeded", (e) => {
     db = e.target.result;
     console.log("Upgrade: ", db);
-    if (!db.objectStoreNames.contains("whiskeyStore")) {
+    if (db.objectStoreNames.contains("whiskeyStore")) {
+      db.deleteObjectStore("whiskeyStore");
       objectStore = db.createObjectStore("whiskeyStore", { keyPath: "id" });
+      objectStore.createIndex("nameIDX", "name", { unique: false });
+      objectStore.createIndex("countryIDX", "country", { unique: false });
     }
   });
 
